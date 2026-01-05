@@ -1,0 +1,15 @@
+=== Compte-rendu Phase 1 ===
+
+Le script erosion.py est un programme de traitement d'images astronomiques qui applique une opération d'érosion morphologique sur des images au format FITS.
+
+Fonctionnement :
+1. Ouverture d'un fichier FITS (HorseHead.fits) via la bibliothèque astropy
+2. Extraction des données image et de l'en-tête metadata
+3. Gestion des images couleur et monochrome (transposition et normalisation)
+4. Sauvegarde de l'image originale en PNG
+5. Application d'une érosion avec un noyau via OpenCV (2x2 et 3x3 avec 1 itération donne un rendu correct)
+6. Sauvegarde de l'image érodée dans results/eroded.PNG
+
+Analyse :
+
+Le rendu est singulier, il se fait sur l'ensemble de l'image et ne permet pas de réduire indépendement chaque pixel selon les parametres.
