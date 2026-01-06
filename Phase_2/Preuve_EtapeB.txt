@@ -1,0 +1,36 @@
+=== Compte-rendu Phase 2 - Étape B ===
+
+Objectif: Implémentation de l'érosion sélective par réduction localisée
+
+Fonctionnement:
+1. Création du masque d'étoiles via DAOStarFinder (836 étoiles détectées)
+2. Application d'un flou gaussien (σ = 5.0 pixels) sur le masque brut
+3. Application de la formule d'interpolation:
+   I_final = (M × I_erode) + ((1-M) × I_original)
+   - M = masque adouci (valeurs 0-1)
+   - I_erode = image érodée globalement
+   - I_original = image originale
+
+Paramètres:
+- Kernel d'érosion: 3×3 pixels, itérations=1
+- Flou gaussien: σ = 5.0 pixels
+- FWHM pour détection: 4.0 pixels
+- Seuil de détection: 2.0 sigma
+
+Résultats:
+- Fichiers générés:
+  * original.png → Image originale
+  * starmask.png → Masque d'étoiles (binaire)
+  * eroded.png → Image après érosion globale
+  * selective_eroded.png → Image après érosion sélective
+  * smooth_mask.png → Masque adouci (gaussien)
+  * difference.png → Différence (globale - sélective)
+
+Comparaison:
+- Érosion globale: Détaille la nébuleuse, érode tout
+- Érosion sélective: Préserve la nébuleuse, érode uniquement les étoiles
+
+Analyse:
+L'érosion sélective protège les structures de la nébuleuse tout en érodant
+les étoiles brillantes. Les transitions sont douces grâce au masque gaussien.
+

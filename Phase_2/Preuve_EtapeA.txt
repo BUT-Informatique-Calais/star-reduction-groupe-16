@@ -1,0 +1,25 @@
+=== Compte-rendu Phase 2 - Étape A ===
+
+Objectif: Création du masque d'étoiles pour l'érosion sélective
+
+Dépendances ajoutées:
+- photutils==1.13.0
+- scipy==1.15.2
+
+Fonctionnement:
+1. Utilisation de DAOStarFinder (photutils) pour détecter les sources ponctuelles
+2. Calcul des statistiques du fond avec sigma-clipping via astropy.stats
+3. Création d'un masque binaire avec des cercles autour de chaque étoile
+4. Sauvegarde du masque en format PNG
+
+Paramètres:
+- FWHM = 4.0 pixels (largeur à mi-hauteur des étoiles)
+- Threshold = 2.0 sigma (seuil de détection au-dessus du fond)
+- Rayon du masque = FWHM × 1.5
+
+Résultats:
+- Nombre d'étoiles détectées: 836
+- Fichier de sortie: results/starmask.png
+- Pixels blancs = positions des étoiles
+- Pixels noirs = fond
+
