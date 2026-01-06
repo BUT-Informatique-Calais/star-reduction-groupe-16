@@ -4,7 +4,8 @@ Selective erosion by interpolation module
 Implements selective erosion that protects nebular structures
 while only eroding bright stars.
 
-Formula: I_final = (M × I_erode) + ((1-M) × I_original)
+Formula: I_final = I_original + 0.5 * (I_eroded - I_original) * M
+The 0.5 factor reduces halo effect compared to full interpolation.
 """
 
 import numpy as np
@@ -64,21 +65,21 @@ class SelectiveErosion:
         # Clamp to valid range
         mask_smooth = np.clip(mask_smooth, 0, 1)
         
+        # Apply average formula: I_final = I_original + 0.5 * (I_eroded - I_original) * M
+        # This reduces halo effect compared to full interpolation
+        weight = 0.5 * mask_smooth
+        
         # Apply interpolation formula
         if original.ndim == 3:
             # Color image - channel by channel
             result = np.zeros_like(original, dtype=np.float64)
             for i in range(original.shape[2]):
-                result[:, :, i] = (
-                    mask_smooth * eroded[:, :, i].astype(np.float64) +
-                    (1 - mask_smooth) * original[:, :, i].astype(np.float64)
-                )
+                result[:, :, i] = original[:, :, i].astype(np.float64) + \
+                    weight * (eroded[:, :, i].astype(np.float64) - original[:, :, i].astype(np.float64))
         else:
             # Grayscale image
-            result = (
-                mask_smooth * eroded.astype(np.float64) +
-                (1 - mask_smooth) * original.astype(np.float64)
-            )
+            result = original.astype(np.float64) + \
+                weight * (eroded.astype(np.float64) - original.astype(np.float64))
         
         # Convert to uint8
         result_uint8 = np.clip(result, 0, 255).astype(np.uint8)
@@ -87,4 +88,3 @@ class SelectiveErosion:
     
     def __repr__(self) -> str:
         return f"SelectiveErosion(blur_sigma={self.blur_sigma})"
-
