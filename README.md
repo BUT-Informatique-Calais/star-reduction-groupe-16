@@ -51,31 +51,68 @@ pip install -r requirements.txt
 - numpy==2.4.0
 - opencv_python==4.12.0.88
 - photutils==1.13.0
+- PyQt6==6.8.1
 - scipy==1.15.2
 
 ## Usage
 
-### Command Line
+### Command Line (Terminal Mode)
 
 ```bash
-python main.py [FITS_FILE]
+python -m src.main
 ```
 
-### Arguments
+### Graphical User Interface (GUI)
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `FITS_FILE` | Path to FITS file (relative to `examples/`) | `test_M31_linear.fits` |
-
-### Examples
+The project includes a full-featured PyQt6-based graphical interface:
 
 ```bash
-# Using default file (test_M31_linear.fits)
-python main.py
-
-# Using a specific FITS file
-python main.py HorseHead.fits
+python -m src.main --gui
 ```
+
+#### GUI Features
+
+| Feature | Description |
+|---------|-------------|
+| **Open FITS** | Opens a file dialog to select a FITS file |
+| **Close** | Exits the application |
+| **Image Display** | Displays the processed PNG image with scroll support |
+| **Stars Detected** | Shows the number of stars found by DAOStarFinder |
+| **Result Files** | Lists all output files with paths |
+| **Timestamp** | Shows when the results were last updated |
+
+#### GUI Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ [Open FITS]                                              [Close]   │
+├─────────────────────────────────────────────────────────────────────┤
+│                              │                                      │
+│                              │     Stars detected:                  │
+│                              │          42                          │
+│    [ Scrollable Image ]      │                                      │
+│                              │     Result files:                    │
+│                              │     • original.png                  │
+│                              │     • starmask.png                  │
+│                              │     • eroded.png                    │
+│                              │     • selective_eroded.png          │
+│                              │     • smooth_mask.png               │
+│                              │     • difference.png                │
+│                              │                                      │
+│                              │     Last updated: 2025-01-15 14:30  │
+└──────────────────────────────┴──────────────────────────────────────┘
+```
+
+#### GUI Technical Details
+
+- **Framework**: PyQt6
+- **Class**: `ImageViewGraphic` in `src/views/image_view_gui.py`
+- **Features**:
+  - Custom dark theme styling
+  - Scrollable image area with aspect ratio preservation
+  - File dialog with FITS file filter
+  - Real-time info panel updates
+  - Responsive layout (60% image, 40% info panel)
 
 ## Output Files
 
@@ -94,45 +131,86 @@ All results are saved to the `results/` directory:
 
 ```
 SAE_astro/
-├── main.py                 # Main entry point & CLI
 ├── requirements.txt        # Python dependencies
 ├── examples/               # FITS test files
 │   ├── HorseHead.fits      # Grayscale test image
 │   ├── test_M31_linear.fits # Color test image
 │   └── test_M31_raw.fits   # Color test image
 ├── results/                # Generated output images
-└── src/                    # Source code
-    ├── config.py           # Centralized configuration
-    ├── image_loader.py     # FITS file loading (astropy)
-    ├── image_saver.py      # PNG export utilities
-    ├── star_detector.py    # DAOStarFinder integration
-    ├── erosion.py          # Morphological erosion (OpenCV)
-    └── selective_erosion.py # Mask-guided interpolation
+└── src/                    # Source code (MVC Architecture)
+    ├── main.py             # Main entry point & CLI
+    ├── __init__.py         # Package root
+    ├── models/             # Data models & Processing algorithms
+    │   ├── __init__.py
+    │   ├── config.py       # Configuration data
+    │   └── image_model.py  # Image data model & processing algorithms
+    ├── views/              # View layer (Display/Output)
+    │   ├── __init__.py
+    │   ├── image_view.py   # Terminal output & image export
+    │   └── image_view_gui.py # PyQt6 GUI application
+    └── controllers/        # Controller layer (Flow Orchestration)
+        ├── __init__.py
+        └── pipeline_controller.py # Pipeline orchestration
 ```
 
-## Source Code Overview
+## MVC Architecture
 
-### `src/config.py`
-Centralized configuration with default parameters:
-- `STAR_FWHM`: 4.0 (pixel size of stars)
-- `STAR_THRESHOLD`: 2.0 (sigma detection threshold)
-- `STAR_RADIUS_FACTOR`: 1.5 (mask radius multiplier)
-- `EROSION_KERNEL_SIZE`: 3 (pixels)
-- `MASK_BLUR_SIGMA`: 5.0 (gaussian blur)
+### Models (`src/models/`) - Data & Processing
+Data models and processing algorithms for astronomical images.
 
-### `src/star_detector.py`
-- Uses `photutils.detection.DAOStarFinder`
-- Sigma-clipped background statistics
-- Creates binary circular masks around detected stars
+#### `config.py`
+Configuration data:
+```python
+@dataclass
+class Config:
+    STAR_FWHM: float = 4.0
+    STAR_THRESHOLD: float = 2.0
+    STAR_RADIUS_FACTOR: float = 1.5
+    EROSION_KERNEL_SIZE: int = 3
+    EROSION_ITERATIONS: int = 1
+    MASK_BLUR_SIGMA: float = 5.0
+```
 
-### `src/erosion.py`
-- OpenCV morphological erosion
-- Configurable kernel size and iterations
+#### `image_model.py`
+Image data model and processing algorithms:
 
-### `src/selective_erosion.py`
-- Applies formula: I_final = I_original + 0.5 × (I_eroded - I_original) × M
-- Gaussian-smoothed mask prevents sharp transitions
-- Protects nebular structures while reducing star brightness
+**Data Model:**
+- `ImageModel`: FITS image data model with preprocessing
+  - Raw FITS data (float64)
+  - Processed image for OpenCV (uint8)
+  - FITS header metadata
+
+**Processing Algorithms:**
+- `StarDetector`: Star detection using DAOStarFinder from photutils
+- `Erosion`: Global morphological erosion for astronomical image processing
+- `SelectiveErosion`: Applies selective erosion with mask interpolation
+
+### Views (`src/views/`) - Display/Output
+Handles all output (terminal and GUI).
+
+#### `image_view.py`
+- `display_header()`: Print project header
+- `display_config()`: Print configuration
+- `display_step()`: Print processing step
+- `display_summary()`: Print summary
+- `save_*()`: Export images to PNG
+
+#### `image_view_gui.py`
+- `ImageViewGraphic`: PyQt6 main window class
+  - `__init__()`: Initialize GUI with results directory
+  - `_setup_ui()`: Create all UI components
+  - `_setup_styles()`: Apply dark theme styling
+  - `_on_open_fits()`: Open file dialog for FITS selection
+- `create_app()`: Create QApplication instance
+- `main()`: GUI entry point
+
+### Controllers (`src/controllers/`) - Flow Orchestration
+Business logic and workflow orchestration.
+
+#### `pipeline_controller.py`
+- Orchestrates the 5-step pipeline
+- Coordinates models and views
+- Handles CLI arguments
 
 ## Example Files
 
