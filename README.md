@@ -17,6 +17,8 @@ This project implements an image processing pipeline that:
 - **Selective Processing**: Gaussian-blurred masks to interpolate between original and eroded images
 - **Multi-format Support**: Handles both grayscale and color FITS images
 - **Configurable Parameters**: Adjust FWHM, detection threshold, and blur sigma via CLI
+- **Interactive Tutorial**: Built-in 3-step guided tutorial for new users
+- **Clickable Results**: Click on result filenames to view the corresponding image
 
 ## Algorithm Pipeline
 
@@ -75,44 +77,75 @@ python -m src.main --gui
 | Feature | Description |
 |---------|-------------|
 | **Open FITS** | Opens a file dialog to select a FITS file |
-| **Close** | Exits the application |
-| **Image Display** | Displays the processed PNG image with scroll support |
-| **Stars Detected** | Shows the number of stars found by DAOStarFinder |
-| **Result Files** | Lists all output files with paths |
-| **Timestamp** | Shows when the results were last updated |
+| **Close** | Exits the application (cleans up PNG files) |
+| **Tuto** | Launches interactive 3-step tutorial |
+| **Image Display** | Scrollable PNG image display with aspect ratio preservation |
+| **Progress Bar** | 5-step processing progress indicator |
+| **Stars Detected** | Real-time star count from DAOStarFinder |
+| **Clickable Results** | Click filenames to view corresponding images |
+| **Result Files** | Lists all output files with click-to-view |
+| **Timestamp** | Shows when results were last updated |
+| **Auto Cleanup** | Automatically deletes PNG files on exit |
 
 #### GUI Layout
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ [Open FITS]                                              [Close]   │
+│ No file selected           [Tuto] [Open FITS]            [Close]    │
+├─────────────────────────────────────────────────────────────────────┤
+│ [==== 0% ====............]                                          |
 ├─────────────────────────────────────────────────────────────────────┤
 │                              │                                      │
 │                              │     Stars detected:                  │
-│                              │          42                          │
+│                              │          XX                          │
 │    [ Scrollable Image ]      │                                      │
 │                              │     Result files:                    │
-│                              │     • original.png                  │
-│                              │     • starmask.png                  │
-│                              │     • eroded.png                    │
-│                              │     • selective_eroded.png          │
-│                              │     • smooth_mask.png               │
-│                              │     • difference.png                │
+│                              │     • original.png                   │
+│                              │     • starmask.png                   │
+│                              │     • eroded.png                     │
+│                              │     ────────────────────────────     │
+│                              │     • selective_eroded.png           │
+│                              │     • smooth_mask.png                │
+│                              │     • difference.png                 │
 │                              │                                      │
-│                              │     Last updated: 2025-01-15 14:30  │
+│                              │     Last updated: XXXX-XX-XX XX:XX   │
 └──────────────────────────────┴──────────────────────────────────────┘
 ```
+
+#### Interactive Tutorial
+
+The GUI includes a built-in 3-step tutorial for new users:
+
+**Step 1:** "Cliquez sur le bouton 'Open FITS' pour charger un fichier FITS"  
+Guides users to open a FITS file for processing.
+
+**Step 2:** "Vous avez l'image chargée sous forme de PNG..."  
+Explains the displayed image, star count, and result files list.
+
+**Step 3:** "Vous pouvez cliquer sur un nom d'image.png pour voir le résultat du traitement"  
+Demonstrates the clickable result filenames feature.
+
+To start the tutorial, click the **"Tuto"** button in the top-right corner.
+
+#### Clickable Result Images
+
+All result filenames in the GUI are clickable:
+- Click any filename (e.g., "starmask.png") to display that image
+- Currently displayed image is highlighted in green
+- Enables easy comparison between processing stages
 
 #### GUI Technical Details
 
 - **Framework**: PyQt6
 - **Class**: `ImageViewGraphic` in `src/views/image_view_gui.py`
 - **Features**:
-  - Custom dark theme styling
+  - Custom dark theme styling (Fusion style base)
   - Scrollable image area with aspect ratio preservation
   - File dialog with FITS file filter
-  - Real-time info panel updates
-  - Responsive layout (60% image, 40% info panel)
+  - Real-time progress bar (5 steps)
+  - Interactive tutorial with QMessageBox popups
+  - Responsive layout with automatic cleanup on exit
+  - Custom signals for MVC communication (pyqtSignal)
 
 ## Output Files
 
@@ -127,6 +160,8 @@ All results are saved to the `results/` directory:
 | `smooth_mask.png` | Gaussian-blurred star mask |
 | `difference.png` | Visual difference (eroded - selective) |
 
+**Note:** PNG files are automatically deleted when closing the application.
+
 ## Project Structure
 
 ```
@@ -136,7 +171,7 @@ SAE_astro/
 │   ├── HorseHead.fits      # Grayscale test image
 │   ├── test_M31_linear.fits # Color test image
 │   └── test_M31_raw.fits   # Color test image
-├── results/                # Generated output images
+├── results/                # Generated output images (auto-cleaned on exit)
 └── src/                    # Source code (MVC Architecture)
     ├── main.py             # Main entry point & CLI
     ├── __init__.py         # Package root
@@ -198,11 +233,24 @@ Handles all output (terminal and GUI).
 #### `image_view_gui.py`
 - `ImageViewGraphic`: PyQt6 main window class
   - `__init__()`: Initialize GUI with results directory
-  - `_setup_ui()`: Create all UI components
+  - `_setup_ui()`: Create all UI components including progress bar and tutorial
   - `_setup_styles()`: Apply dark theme styling
   - `_on_open_fits()`: Open file dialog for FITS selection
+  - `_on_tuto_clicked()`: Launch interactive 3-step tutorial
+  - `_display_image()`: Display PNG image with aspect ratio preservation
+  - `_on_result_clicked()`: Handle click on result filenames
+  - `_cleanup_results()`: Delete PNG files on application exit
+  - Custom signals: `processing_started`, `processing_finished`, `stars_updated`, `results_updated`
 - `create_app()`: Create QApplication instance
 - `main()`: GUI entry point
+
+**New GUI Features:**
+- **Interactive Tutorial**: 3-step guided walkthrough using QMessageBox popups
+- **Progress Bar**: Visual 5-step progress indicator during processing
+- **Clickable Images**: All result filenames are clickable to display corresponding images
+- **Visual Selection**: Currently displayed image is highlighted in green
+- **Auto Cleanup**: Automatic deletion of PNG files when closing application
+- **Responsive Design**: Window resize handling with image aspect ratio preservation
 
 ### Controllers (`src/controllers/`) - Flow Orchestration
 Business logic and workflow orchestration.
@@ -211,6 +259,11 @@ Business logic and workflow orchestration.
 - Orchestrates the 5-step pipeline
 - Coordinates models and views
 - Handles CLI arguments
+- Supports callback-based progress tracking
+- Callback signatures:
+  - `on_progress(step, message)`: Progress update callback
+  - `on_stars_detected(count)`: Stars count callback
+  - `on_results_ready(paths)`: Results ready callback
 
 ## Example Files
 
@@ -221,3 +274,36 @@ Test FITS files are located in the `examples/` directory:
 | `HorseHead.fits` | Grayscale | Horse Head Nebula region |
 | `test_M31_linear.fits` | Color | Andromeda Galaxy (linear stretch) |
 | `test_M31_raw.fits` | Color | Andromeda Galaxy (raw) |
+
+## Quick Start
+
+### 1. Launch GUI
+
+```bash
+python -m src.main --gui
+```
+
+### 2. Open a FITS File
+
+Click **"Open FITS"** and navigate to `examples/` directory.
+
+### 3. View Results
+
+The processing pipeline runs automatically:
+- Progress bar shows current step
+- Stars detected count updates in real-time
+- Result files appear in the list below
+
+### 4. Compare Images
+
+Click on any result filename to display that image:
+- `original.png` - Original input
+- `starmask.png` - Detected stars overlay
+- `eroded.png` - After global erosion
+- `selective_eroded.png` - Final selective erosion result
+- `smooth_mask.png` - Gaussian-blurred mask
+- `difference.png` - Visual difference map
+
+### 5. Need Help?
+
+Click **"Tuto"** button for the interactive tutorial!
