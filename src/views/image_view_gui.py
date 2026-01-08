@@ -29,7 +29,7 @@ from PyQt6.QtCore import Qt, QSize, pyqtSignal, QObject
 from PyQt6.QtGui import QPixmap, QImage, QFont, QIcon, QFontDatabase
 
 # Import existing model classes and controller
-from ..models import ImageModel
+from ..models import ImageModel, StateManager, Config
 from ..controllers import PipelineController
 
 
@@ -53,7 +53,8 @@ class ImageViewGraphic(QMainWindow):
     def __init__(
         self,
         results_dir: str = "./results",
-        parent: Optional[QWidget] = None
+        parent: Optional[QWidget] = None,
+        saved_state: Optional[dict] = None
     ):
         """
         Initializes the GUI window.
@@ -61,19 +62,35 @@ class ImageViewGraphic(QMainWindow):
         Args:
             results_dir: Directory for result images
             parent: Parent widget
+            saved_state: Optional saved state to restore (from StateManager)
         """
         super().__init__(parent)
         self.results_dir = Path(results_dir)
         self.image_model: Optional[ImageModel] = None
         self.num_stars: int = 0
         self.current_displayed_image: str = "original.png"  # Track currently displayed image
-        
+
+        # State manager for save/load functionality
+        self.state_manager = StateManager(Config.STATE_FILE)
+
+        # Closing flag to prevent re-entrancy in close event
+        self._is_closing: bool = False
+
+        # Flag to indicate if state was restored (so PNG clicks work)
+        self._state_restored: bool = False
+
         # Tutorial state variables
         self.tutorial_active: bool = False
         self.tutorial_step: int = 0
+
+        # Setup UI first
         self._setup_ui()
         self._setup_styles()
         self._connect_signals()
+
+        # Load saved state if available
+        if saved_state:
+            self._restore_state(saved_state)
 
     def _setup_ui(self) -> None:
         """Sets up the UI components and layout"""
@@ -117,7 +134,7 @@ class ImageViewGraphic(QMainWindow):
 
         self.close_button = QPushButton("Close APP")
         self.close_button.setObjectName("closeButton")
-        self.close_button.clicked.connect(self.close)
+        self.close_button.clicked.connect(self._on_close_clicked)
         top_layout.addWidget(self.close_button, alignment=Qt.AlignmentFlag.AlignRight)
 
         main_layout.addWidget(top_bar)
@@ -588,8 +605,8 @@ class ImageViewGraphic(QMainWindow):
         Args:
             filename: The filename of the clicked result
         """
-        # Security check: if no FITS file is loaded, show tutorial
-        if self.image_model is None:
+        # Security check: if no FITS file is loaded and no state was restored, show tutorial
+        if self.image_model is None and not self._state_restored:
             self._on_tuto_clicked()
             return
         self._display_image(filename)
@@ -633,10 +650,68 @@ class ImageViewGraphic(QMainWindow):
         msg.setIcon(QMessageBox.Icon.Information)
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
-        
+
         # End of tutorial
         self.tutorial_active = False
         self.tutorial_step = 0
+
+    def _show_close_confirmation(self) -> None:
+        """Shows a confirmation dialog before closing the application"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Quitter l'application")
+        msg.setText("Vous êtes sur le point de quitter l'application, voulez-vous sauvegarder l'état actuel ?")
+        msg.setIcon(QMessageBox.Icon.Question)
+
+        # Add custom buttons
+        btn_yes = msg.addButton("Oui", QMessageBox.ButtonRole.YesRole)
+        btn_no = msg.addButton("Non", QMessageBox.ButtonRole.NoRole)
+        btn_cancel = msg.addButton("Annuler", QMessageBox.ButtonRole.RejectRole)
+
+        # Set default button
+        msg.setDefaultButton(btn_yes)
+
+        msg.exec()
+
+        if msg.clickedButton() == btn_yes:
+            # Save state and close without deleting images
+            self._save_and_close()
+        elif msg.clickedButton() == btn_no:
+            # Delete images and close
+            self._cleanup_results()
+            self.state_manager.clear_state()
+            # Set closing flag to prevent re-entrancy
+            self._is_closing = True
+            self.close()
+        else:
+            # Cancel - do nothing
+            pass
+
+    def _on_close_clicked(self) -> None:
+        """Handles the Close APP button click"""
+        # If no image is loaded and no state was restored, just close without confirmation
+        if self.image_model is None and not self._state_restored:
+            self.close()
+            return
+
+        # Show confirmation dialog
+        self._show_close_confirmation()
+
+    def _save_and_close(self) -> None:
+        """Saves the current state and closes without deleting images"""
+        fits_path = str(self.image_model.fits_path) if self.image_model else ""
+
+        # Save state using state manager
+        self.state_manager.save_state(
+            fits_path=fits_path,
+            displayed_image=self.current_displayed_image,
+            num_stars=self.num_stars
+        )
+
+        # Set closing flag to prevent re-entrancy
+        self._is_closing = True
+
+        # Close the application
+        self.close()
 
     def _update_result_labels_selection(self) -> None:
         """Updates the visual selection state of result labels based on currently displayed image."""
@@ -654,6 +729,54 @@ class ImageViewGraphic(QMainWindow):
         """Updates the timestamp"""
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.timestamp_label.setText(f"Last updated: {now}")
+
+    def _restore_state(self, state: dict) -> None:
+        """
+        Restores application state from saved data.
+
+        Args:
+            state: Dictionary containing saved state (fits_file, displayed_image, num_stars, timestamp)
+        """
+        try:
+            fits_path = state.get("fits_file")
+            displayed_image = state.get("displayed_image", "original.png")
+            num_stars = state.get("num_stars", 0)
+            timestamp = state.get("timestamp", "")
+
+            if not fits_path:
+                return
+
+            # Update UI
+            self.file_label.setText(Path(fits_path).name)
+            self.current_displayed_image = displayed_image
+            self.num_stars = num_stars
+            self.stars_count.setText(str(num_stars))
+
+            # Set flag to indicate state was restored (so PNG clicks work)
+            self._state_restored = True
+
+            # Update timestamp label
+            if timestamp:
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(timestamp)
+                    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    self.timestamp_label.setText(f"Restored: {formatted_time}")
+                except (ValueError, TypeError):
+                    self.timestamp_label.setText(f"Restored: {timestamp}")
+            else:
+                self.timestamp_label.setText("Restored from save")
+
+            # Update result labels
+            self._update_result_labels_selection()
+
+            # Display the saved image
+            self._display_image(displayed_image)
+
+            print(f"State restored: {fits_path}")
+
+        except Exception as e:
+            print(f"Error restoring state: {e}")
 
     def _cleanup_results(self) -> None:
         """Deletes all PNG files in the results directory when closing the app"""
@@ -678,9 +801,20 @@ class ImageViewGraphic(QMainWindow):
             self.image_label.setPixmap(scaled_pixmap)
 
     def closeEvent(self, event) -> None:
-        """Override close event to clean up PNG files before closing"""
-        self._cleanup_results()
-        event.accept()
+        """
+        Override close event to handle save/cleanup before closing.
+        Shows confirmation dialog if an image is loaded or state was restored.
+        """
+        # If already closing or no image loaded and no state restored, accept close
+        if self._is_closing or (self.image_model is None and not self._state_restored):
+            event.accept()
+            return
+
+        # Prevent default closing
+        event.ignore()
+
+        # Show confirmation dialog
+        self._show_close_confirmation()
 
     def __repr__(self) -> str:
         return f"ImageViewGraphic(results_dir='{self.results_dir}')"
@@ -698,10 +832,31 @@ def create_app() -> QApplication:
     return app
 
 
+def create_window(saved_state: Optional[dict] = None) -> "ImageViewGraphic":
+    """
+    Creates and returns an ImageViewGraphic window.
+
+    Args:
+        saved_state: Optional saved state to restore (from StateManager)
+
+    Returns:
+        ImageViewGraphic instance
+    """
+    window = ImageViewGraphic(saved_state=saved_state)
+    return window
+
+
 def main() -> None:
     """Main entry point for the GUI application"""
+    from ..models import Config, StateManager
+
     app = create_app()
-    window = ImageViewGraphic()
+
+    # Check for saved state
+    state_manager = StateManager(Config.STATE_FILE)
+    saved_state = state_manager.load_state() if state_manager.has_saved_state() else None
+
+    window = create_window(saved_state=saved_state)
     window.show()
     app.exec()
 

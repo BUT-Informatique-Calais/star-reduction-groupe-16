@@ -30,10 +30,18 @@ def run_pipeline() -> None:
 def run_gui() -> None:
     """
     Launches the graphical user interface.
+    Loads saved state if available.
     """
-    from src.views.image_view_gui import create_app
+    from src.views.image_view_gui import create_app, create_window
+    from src.models import Config, StateManager
+
     app = create_app()
-    window = ImageViewGraphic()
+
+    # Check for saved state
+    state_manager = StateManager(Config.STATE_FILE)
+    saved_state = state_manager.load_state() if state_manager.has_saved_state() else None
+
+    window = create_window(saved_state=saved_state)
     window.show()
     app.exec()
 

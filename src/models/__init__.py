@@ -11,6 +11,7 @@ from .image_model import (
     SelectiveErosion,
     StarDetector,
 )
+from .state_manager import StateManager
 
 __all__ = [
     'Config',
@@ -18,5 +19,6 @@ __all__ = [
     'Erosion',
     'SelectiveErosion',
     'StarDetector',
+    'StateManager',
 ]
 

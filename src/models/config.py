@@ -45,6 +45,9 @@ class Config:
         "difference",
     ]
 
+    # State file for save/load functionality
+    STATE_FILE: Path = RESULTS_DIR / "state.json"
+
     @classmethod
     def get_fits_file(cls, filename: str = None) -> Path:
         """Returns the path to the FITS file"""
