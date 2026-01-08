@@ -21,9 +21,32 @@ from src.views import ImageViewGraphic
 
 def run_pipeline() -> None:
     """
-    Runs the complete image processing pipeline using default configuration.
+    Runs the complete image processing pipeline.
+    Prompts for FITS file selection, then default or custom configuration.
     """
-    controller = PipelineController()
+    from src.views import ImageView
+    from src.models import Config
+    
+    view = ImageView()
+    
+    # Get configuration for examples directory
+    config = Config()
+    
+    # Ask for FITS file selection
+    fits_path, fits_default_used = view.ask_fits_file(config.EXAMPLES_DIR, config.DEFAULT_FITS_FILE)
+    
+    # Ask for configuration mode
+    mode = view.ask_mode()
+    
+    if mode == "custom":
+        # Get custom configuration interactively
+        config = view.get_custom_config(config)
+    
+    # Update the default fits file in config to use the selected one
+    config.DEFAULT_FITS_FILE = fits_path
+    
+    # Run pipeline with selected configuration
+    controller = PipelineController(config=config)
     controller.run()
 
 
