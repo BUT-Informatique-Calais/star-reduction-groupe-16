@@ -1,7 +1,7 @@
 """
 Controllers Package - MVC Architecture
 
-Controller components for astronomical image processing pipeline.
+Flow control and pipeline orchestration.
 """
 
 from .pipeline_controller import PipelineController
@@ -9,4 +9,5 @@ from .pipeline_controller import PipelineController
 __all__ = [
     'PipelineController',
 ]
+
 

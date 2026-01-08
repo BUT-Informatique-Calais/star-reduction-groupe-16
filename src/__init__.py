@@ -4,12 +4,12 @@ SAE Astro - Source Package
 MVC Architecture for astronomical image processing.
 
 Package structure:
-- models/: Data models and processing algorithms
-- views/: Output and visualization components
-- controllers/: Pipeline orchestration
+- models/: Data models only
+- views/: Display and terminal output
+- controllers/: Processing algorithms and flow control
 """
 
-# Models
+# Models (Data only)
 from .models import (
     Config,
     ImageModel,
@@ -18,11 +18,13 @@ from .models import (
     StarDetector,
 )
 
-# Views
+# Views (Display/Output)
 from .views import ImageView
 
-# Controllers
-from .controllers import PipelineController
+# Controllers (Processing and flow)
+from .controllers import (
+    PipelineController,
+)
 
 __all__ = [
     # Models
@@ -37,5 +39,4 @@ __all__ = [
     'PipelineController',
 ]
 
-__version__ = "2.0.0"
 
