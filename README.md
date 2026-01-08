@@ -16,9 +16,10 @@ This project implements an image processing pipeline that:
 - **Morphological Operations**: OpenCV-based erosion for reducing stellar halos
 - **Selective Processing**: Gaussian-blurred masks to interpolate between original and eroded images
 - **Multi-format Support**: Handles both grayscale and color FITS images
-- **Configurable Parameters**: Adjust FWHM, detection threshold, and blur sigma via CLI
-- **Interactive Tutorial**: Built-in 3-step guided tutorial for new users
-- **Clickable Results**: Click on result filenames to view the corresponding image
+- **Configurable Parameters**: Adjust FWHM, detection threshold, and blur sigma via interactive CLI
+- **Interactive Terminal Mode**: Choose FITS file and customize all processing parameters
+- **Interactive Tutorial**: Built-in 3-step guided tutorial for new users (GUI)
+- **Clickable Results**: Click on result filenames to view the corresponding image (GUI)
 
 ## Algorithm Pipeline
 
@@ -58,11 +59,61 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Command Line (Terminal Mode)
+### Interactive Terminal Mode
 
 ```bash
 python -m src.main
 ```
+
+The terminal mode now includes an interactive configuration wizard:
+
+**Step 1: Select FITS File**
+```
+==================================================
+SELECT FITS FILE
+==================================================
+Available files:
+  1. HorseHead.fits         [default]
+  2. test_M31_linear.fits
+  3. test_M31_raw.fits
+
+[Enter] - Use default (HorseHead.fits)
+Type the filename to select another file.
+```
+
+**Step 2: Choose Configuration Mode**
+```
+Configuration mode:
+  [Enter] - Use default settings
+  custom  - Customize parameters
+```
+
+**Step 3: Custom Parameters (if "custom" selected)**
+```
+==================================================
+CUSTOM CONFIGURATION
+==================================================
+Leave empty to keep default value.
+Enter 'cancel' to abort and use all defaults.
+
+  Star FWHM (px) (default: 4.0): 
+  Detection threshold (σ) (default: 2.0): 
+  Mask radius factor (default: 1.5): 
+  Erosion kernel size (px) (default: 3): 
+  Erosion iterations (default: 1): 
+  Mask blur sigma (default: 5.0): 
+
+==================================================
+Configuration complete!
+==================================================
+```
+
+**Features:**
+- **File Selection**: Lists all `.fits` files from `examples/`, shows default with `[default]` marker
+- **Default Handling**: Press Enter to use default file or parameters
+- **Invalid Input**: Displays error message and uses default value
+- **Cancel Support**: Type `cancel` at any parameter prompt to abort and use all defaults
+- **Custom Values**: Enter new values to override defaults
 
 ### Graphical User Interface (GUI)
 
@@ -94,7 +145,7 @@ python -m src.main --gui
 ┌─────────────────────────────────────────────────────────────────────┐
 │ No file selected           [Tuto] [Open FITS]            [Close]    │
 ├─────────────────────────────────────────────────────────────────────┤
-│ [==== 0% ====............]                                          |
+│ [==== 0% ====............]                                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │                              │                                      │
 │                              │     Stars detected:                  │
@@ -195,7 +246,7 @@ All results are saved to the `results/` directory:
 | `smooth_mask.png` | Gaussian-blurred star mask |
 | `difference.png` | Visual difference (eroded - selective) |
 
-**Note:** PNG files are automatically deleted when closing the application.
+**Note:** PNG files are automatically deleted when closing the GUI application.
 
 ## Project Structure
 
@@ -216,7 +267,7 @@ SAE_astro/
     │   └── image_model.py  # Image data model & processing algorithms
     ├── views/              # View layer (Display/Output)
     │   ├── __init__.py
-    │   ├── image_view.py   # Terminal output & image export
+    │   ├── image_view.py   # Terminal output & interactive configuration
     │   └── image_view_gui.py # PyQt6 GUI application
     └── controllers/        # Controller layer (Flow Orchestration)
         ├── __init__.py
@@ -273,7 +324,16 @@ Handles all output (terminal and GUI).
 - `display_config()`: Print configuration
 - `display_step()`: Print processing step
 - `display_summary()`: Print summary
+- `ask_mode()`: Prompt for default or custom configuration
+- `ask_fits_file()`: Interactive FITS file selection from examples/
+- `get_custom_config()`: Interactive parameter configuration wizard
 - `save_*()`: Export images to PNG
+
+**Interactive Terminal Features:**
+- `ask_fits_file()`: Lists available FITS files, allows selection by filename
+- `ask_mode()`: Prompts for "default" or "custom" configuration
+- `get_custom_config()`: Walks through all parameters one by one
+- `_ask_float()` / `_ask_int()`: Input validation with error handling
 
 #### `image_view_gui.py`
 - `ImageViewGraphic`: PyQt6 main window class
@@ -323,24 +383,35 @@ Test FITS files are located in the `examples/` directory:
 
 ## Quick Start
 
-### 1. Launch GUI
+### 1. Launch Interactive Terminal Mode
+
+```bash
+python -m src.main
+```
+
+**Follow the prompts:**
+1. Select a FITS file (or press Enter for default)
+2. Choose "custom" to modify parameters, or press Enter for defaults
+3. Enter custom values or press Enter to keep defaults
+
+### 2. Launch GUI
 
 ```bash
 python -m src.main --gui
 ```
 
-### 2. Open a FITS File
+### 3. Open a FITS File
 
 Click **"Open FITS"** and navigate to `examples/` directory.
 
-### 3. View Results
+### 4. View Results
 
 The processing pipeline runs automatically:
 - Progress bar shows current step
 - Stars detected count updates in real-time
 - Result files appear in the list below
 
-### 4. Compare Images
+### 5. Compare Images
 
 Click on any result filename to display that image:
 - `original.png` - Original input
@@ -350,6 +421,24 @@ Click on any result filename to display that image:
 - `smooth_mask.png` - Gaussian-blurred mask
 - `difference.png` - Visual difference map
 
-### 5. Need Help?
+### 6. Need Help?
 
-Click **"Tuto"** button for the interactive tutorial!
+Click **"Tuto"** button for the interactive tutorial (GUI only)!
+
+## Interactive Terminal Parameters
+
+When running in "custom" mode, you can configure:
+
+| Parameter | Description | Default | Type |
+|-----------|-------------|---------|------|
+| Star FWHM | Full Width at Half Maximum of stars | 4.0 px | float |
+| Detection threshold | Star detection threshold | 2.0 σ | float |
+| Mask radius factor | Radius = FWHM × factor | 1.5 | float |
+| Erosion kernel size | Size of erosion kernel | 3 px | int |
+| Erosion iterations | Number of erosion passes | 1 | int |
+| Mask blur sigma | Gaussian blur for mask | 5.0 | float |
+
+**Validation:**
+- Values below minimum are rejected with error message
+- Invalid input (non-numeric) shows error and re-prompts
+- `cancel` aborts custom configuration and uses all defaults
