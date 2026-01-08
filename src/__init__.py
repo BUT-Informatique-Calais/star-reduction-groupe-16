@@ -1,22 +1,41 @@
 """
 SAE Astro - Source Package
 
-Modules for astronomical image processing (erosion, star detection, etc.)
+MVC Architecture for astronomical image processing.
+
+Package structure:
+- models/: Data models and processing algorithms
+- views/: Output and visualization components
+- controllers/: Pipeline orchestration
 """
 
-from .config import Config
-from .image_loader import ImageLoader
-from .star_detector import StarDetector
-from .erosion import Erosion
-from .selective_erosion import SelectiveErosion
-from .image_saver import ImageSaver
+# Models
+from .models import (
+    Config,
+    ImageModel,
+    Erosion,
+    SelectiveErosion,
+    StarDetector,
+)
+
+# Views
+from .views import ImageView
+
+# Controllers
+from .controllers import PipelineController
 
 __all__ = [
+    # Models
     'Config',
-    'ImageLoader',
-    'StarDetector',
+    'ImageModel',
     'Erosion',
     'SelectiveErosion',
-    'ImageSaver',
+    'StarDetector',
+    # Views
+    'ImageView',
+    # Controllers
+    'PipelineController',
 ]
+
+__version__ = "2.0.0"
 
