@@ -19,7 +19,7 @@ from .models import (
 )
 
 # Views (Display/Output)
-from .views import ImageView
+from .views import ImageView, ImageViewGraphic
 
 # Controllers (Processing and flow)
 from .controllers import (
@@ -35,6 +35,7 @@ __all__ = [
     'StarDetector',
     # Views
     'ImageView',
+    'ImageViewGraphic',
     # Controllers
     'PipelineController',
 ]
