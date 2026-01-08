@@ -77,7 +77,7 @@ python -m src.main --gui
 | Feature | Description |
 |---------|-------------|
 | **Open FITS** | Opens a file dialog to select a FITS file |
-| **Close** | Exits the application (cleans up PNG files) |
+| **Close** | Exits with save/cleanup confirmation dialog |
 | **Tuto** | Launches interactive 3-step tutorial |
 | **Image Display** | Scrollable PNG image display with aspect ratio preservation |
 | **Progress Bar** | 5-step processing progress indicator |
@@ -85,7 +85,8 @@ python -m src.main --gui
 | **Clickable Results** | Click filenames to view corresponding images |
 | **Result Files** | Lists all output files with click-to-view |
 | **Timestamp** | Shows when results were last updated |
-| **Auto Cleanup** | Automatically deletes PNG files on exit |
+| **State Persistence** | Saves/restores session state automatically |
+| **Save/Close Dialog** | Prompts to save state before exiting |
 
 #### GUI Layout
 
@@ -134,6 +135,28 @@ All result filenames in the GUI are clickable:
 - Currently displayed image is highlighted in green
 - Enables easy comparison between processing stages
 
+#### State Persistence
+
+The GUI includes automatic state save/restore functionality:
+
+**Saving State:**
+When closing the application, a dialog asks whether to save the current session:
+- **Yes**: Saves current FITS file path, displayed image, and star count to `results/state.json`
+- **No**: Deletes all PNG files and clears saved state
+- **Cancel**: Returns to the application without closing
+
+**Restoring State:**
+On next launch:
+- Automatically detects if saved state exists
+- Restores the previously loaded FITS file path
+- Shows the last displayed image
+- Restores star count and timestamp
+
+**State File:**
+- Location: `results/state.json`
+- Contains: `fits_file`, `displayed_image`, `num_stars`, `timestamp`
+- Cleared when clicking "No" in close dialog
+
 #### GUI Technical Details
 
 - **Framework**: PyQt6
@@ -144,8 +167,20 @@ All result filenames in the GUI are clickable:
   - File dialog with FITS file filter
   - Real-time progress bar (5 steps)
   - Interactive tutorial with QMessageBox popups
-  - Responsive layout with automatic cleanup on exit
+  - Responsive layout with state save/restore on exit
   - Custom signals for MVC communication (pyqtSignal)
+  - State persistence with `StateManager` class
+
+#### State Manager (`src/models/state_manager.py`)
+
+State management for GUI session persistence:
+
+- `StateManager`: Handles save/load of application state
+  - `save_state(fits_file, displayed_image, num_stars)`: Saves session to JSON
+  - `load_state()`: Loads saved session from JSON
+  - `has_saved_state()`: Checks if saved state exists
+  - `clear_state()`: Removes saved state file
+  - State file: `results/state.json`
 
 ## Output Files
 
@@ -220,6 +255,16 @@ Image data model and processing algorithms:
 - `Erosion`: Global morphological erosion for astronomical image processing
 - `SelectiveErosion`: Applies selective erosion with mask interpolation
 
+#### `state_manager.py`
+State management for GUI session persistence:
+
+- `StateManager`: Handles save/load of application state
+  - `__init__(state_file)`: Initialize with path to state file
+  - `save_state(fits_file, displayed_image, num_stars)`: Saves session to JSON
+  - `load_state()`: Loads saved session from JSON
+  - `has_saved_state()`: Checks if saved state exists
+  - `clear_state()`: Removes saved state file
+
 ### Views (`src/views/`) - Display/Output
 Handles all output (terminal and GUI).
 
@@ -249,7 +294,8 @@ Handles all output (terminal and GUI).
 - **Progress Bar**: Visual 5-step progress indicator during processing
 - **Clickable Images**: All result filenames are clickable to display corresponding images
 - **Visual Selection**: Currently displayed image is highlighted in green
-- **Auto Cleanup**: Automatic deletion of PNG files when closing application
+- **State Persistence**: Saves/restores session automatically on close/launch
+- **Save Confirmation Dialog**: Prompts to save state before exiting
 - **Responsive Design**: Window resize handling with image aspect ratio preservation
 
 ### Controllers (`src/controllers/`) - Flow Orchestration
