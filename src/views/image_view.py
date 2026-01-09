@@ -214,7 +214,7 @@ class ImageView:
 
     def display_step(self, step: int, message: str) -> None:
         """Displays current processing step"""
-        print(f"\n[{step}/5] {message}")
+        print(f"\n[{step}/7] {message}")
 
     def display_info(self, message: str) -> None:
         """Displays informational message"""
@@ -230,7 +230,9 @@ class ImageView:
         print("3. eroded.png          → Global erosion")
         print("4. selective_eroded.png → Selective erosion")
         print("5. smooth_mask.png     → Smoothed mask (gaussian)")
-        print("6. difference.png      → Difference (global - selective)")
+        print("6. dilated.png         → Global dilatation")
+        print("7. selective_dilated.png → Selective dilatation")
+        print("8. difference.png      → Difference (global - selective)")
         print(f"\nStars detected: {num_stars}")
         print("=" * 50)
 
