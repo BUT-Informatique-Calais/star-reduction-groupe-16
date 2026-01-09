@@ -340,6 +340,52 @@ class AdvancedProcessingWindow(QWidget):
             "selective": self.selective_checkbox.isChecked()
         }
 
+    def _get_erosion_input_image(self) -> tuple[np.ndarray, str]:
+        """
+        Gets the input image for erosion operation.
+
+        Returns the result of the last dilatation if it exists (selective_dilated.png or dilated.png),
+        otherwise returns the original image.
+
+        Returns:
+            Tuple of (input image for erosion (uint8), filename used)
+        """
+        # Check for selective dilated image first
+        selective_dilated_path = self.image_model.results_dir / "selective_dilated.png"
+        if selective_dilated_path.exists():
+            return cv.imread(str(selective_dilated_path)), "selective_dilated.png"
+
+        # Check for global dilated image
+        dilated_path = self.image_model.results_dir / "dilated.png"
+        if dilated_path.exists():
+            return cv.imread(str(dilated_path)), "dilated.png"
+
+        # Fallback to original image
+        return self.image_model.image, "original.png"
+
+    def _get_dilatation_input_image(self) -> tuple[np.ndarray, str]:
+        """
+        Gets the input image for dilatation operation.
+
+        Returns the result of the last erosion if it exists (selective_eroded.png or eroded.png),
+        otherwise returns the original image.
+
+        Returns:
+            Tuple of (input image for dilatation (uint8), filename used)
+        """
+        # Check for selective eroded image first
+        selective_eroded_path = self.image_model.results_dir / "selective_eroded.png"
+        if selective_eroded_path.exists():
+            return cv.imread(str(selective_eroded_path)), "selective_eroded.png"
+
+        # Check for global eroded image
+        eroded_path = self.image_model.results_dir / "eroded.png"
+        if eroded_path.exists():
+            return cv.imread(str(eroded_path)), "eroded.png"
+
+        # Fallback to original image
+        return self.image_model.image, "original.png"
+
     def _on_apply_erosion(self) -> None:
         """Handles Apply Erosion button click"""
         if self.image_model is None:
@@ -348,23 +394,26 @@ class AdvancedProcessingWindow(QWidget):
 
         try:
             params = self._get_erosion_params()
-            result_filename = self._apply_erosion(params)
+            result_filename, input_filename = self._apply_erosion(params)
             self.processing_done.emit(result_filename)
-            QMessageBox.information(self, "Succès", "Érosion appliquée avec succès !")
+            QMessageBox.information(self, "Succès",
+                f"Érosion appliquée avec succès !\n"
+                f"Image d'entrée : {input_filename}\n"
+                f"Résultat : {result_filename}")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de l'érosion: {e}")
 
-    def _apply_erosion(self, params: dict) -> str:
+    def _apply_erosion(self, params: dict) -> tuple[str, str]:
         """
         Applies erosion with given parameters.
-        
+
         Args:
             params: Dictionary with erosion parameters
-            
+
         Returns:
-            Filename of the result image
+            Tuple of (filename of the result image, filename of the input image used)
         """
-        image = self.image_model.image
+        input_image, input_filename = self._get_erosion_input_image()  # Result of last dilatation or original
         is_color = self.image_model.is_color
 
         if params["selective"]:
@@ -373,16 +422,16 @@ class AdvancedProcessingWindow(QWidget):
             detector = self._get_star_detector()
             star_mask, _ = detector.detect(gray_image)
 
-            # First apply global erosion
+            # Apply global erosion on input image
             global_erosion = Erosion(
                 kernel_size=params["kernel_size"],
                 iterations=params["iterations"]
             )
-            eroded_image = global_erosion.apply(image)
+            eroded_image = global_erosion.apply(input_image)
 
-            # Apply selective erosion
+            # Apply selective erosion using the eroded input image as base
             erosion = SelectiveErosion(blur_sigma=params["blur_sigma"])
-            result, _ = erosion.apply(image, eroded_image, star_mask)
+            result, _ = erosion.apply(input_image, eroded_image, star_mask)
 
             # Save result
             if is_color:
@@ -390,14 +439,14 @@ class AdvancedProcessingWindow(QWidget):
             else:
                 self.image_model.save_grayscale(result, "selective_eroded")
 
-            return "selective_eroded.png"
+            return "selective_eroded.png", input_filename
         else:
             # Apply global erosion
             erosion = Erosion(
                 kernel_size=params["kernel_size"],
                 iterations=params["iterations"]
             )
-            result = erosion.apply(image)
+            result = erosion.apply(input_image)
 
             # Save result
             if is_color:
@@ -405,7 +454,7 @@ class AdvancedProcessingWindow(QWidget):
             else:
                 self.image_model.save_grayscale(result, "eroded")
 
-            return "eroded.png"
+            return "eroded.png", input_filename
 
     def _on_apply_dilatation(self) -> None:
         """Handles Apply Dilatation button click"""
@@ -415,23 +464,26 @@ class AdvancedProcessingWindow(QWidget):
 
         try:
             params = self._get_dilatation_params()
-            result_filename = self._apply_dilatation(params)
+            result_filename, input_filename = self._apply_dilatation(params)
             self.processing_done.emit(result_filename)
-            QMessageBox.information(self, "Succès", "Dilatation appliquée avec succès !")
+            QMessageBox.information(self, "Succès",
+                f"Dilatation appliquée avec succès !\n"
+                f"Image d'entrée : {input_filename}\n"
+                f"Résultat : {result_filename}")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de la dilatation: {e}")
 
-    def _apply_dilatation(self, params: dict) -> str:
+    def _apply_dilatation(self, params: dict) -> tuple[str, str]:
         """
         Applies dilatation with given parameters.
-        
+
         Args:
             params: Dictionary with dilatation parameters
-            
+
         Returns:
-            Filename of the result image
+            Tuple of (filename of the result image, filename of the input image used)
         """
-        image = self.image_model.image
+        input_image, input_filename = self._get_dilatation_input_image()  # Result of last erosion or original
         is_color = self.image_model.is_color
 
         if params["selective"]:
@@ -440,16 +492,16 @@ class AdvancedProcessingWindow(QWidget):
             detector = self._get_star_detector()
             star_mask, _ = detector.detect(gray_image)
 
-            # First apply global dilatation
+            # Apply global dilatation on input image
             global_dilatation = Dilatation(
                 kernel_size=params["kernel_size"],
                 iterations=params["iterations"]
             )
-            dilated_image = global_dilatation.apply(image)
+            dilated_image = global_dilatation.apply(input_image)
 
-            # Apply selective dilatation
+            # Apply selective dilatation using the dilated input image as base
             dilatation = SelectiveDilatation(blur_sigma=params["blur_sigma"])
-            result, _ = dilatation.apply(image, dilated_image, star_mask)
+            result, _ = dilatation.apply(input_image, dilated_image, star_mask)
 
             # Save result
             if is_color:
@@ -457,14 +509,14 @@ class AdvancedProcessingWindow(QWidget):
             else:
                 self.image_model.save_grayscale(result, "selective_dilated")
 
-            return "selective_dilated.png"
+            return "selective_dilated.png", input_filename
         else:
             # Apply global dilatation
             dilatation = Dilatation(
                 kernel_size=params["kernel_size"],
                 iterations=params["iterations"]
             )
-            result = dilatation.apply(image)
+            result = dilatation.apply(input_image)
 
             # Save result
             if is_color:
@@ -472,7 +524,7 @@ class AdvancedProcessingWindow(QWidget):
             else:
                 self.image_model.save_grayscale(result, "dilated")
 
-            return "dilated.png"
+            return "dilated.png", input_filename
 
     def _get_star_detector(self):
         """Creates a star detector for selective operations"""

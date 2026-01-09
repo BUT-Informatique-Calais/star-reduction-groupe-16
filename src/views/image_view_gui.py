@@ -83,6 +83,7 @@ class ImageViewGraphic(QMainWindow):
         # Tutorial state variables
         self.tutorial_active: bool = False
         self.tutorial_step: int = 0
+        self._tuto_advanced_opened: bool = False  # Track if advanced window was opened from tutorial
 
         # Advanced processing window reference
         self.advanced_window: Optional[AdvancedProcessingWindow] = None
@@ -696,9 +697,53 @@ class ImageViewGraphic(QMainWindow):
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
 
+        # Continue to step 4
+        self._show_tuto_step_4()
+
+    def _show_tuto_step_4(self) -> None:
+        """Shows step 4 of the tutorial: explain advanced parameters button"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Tutoriel - Étape 4")
+        msg.setText("Vous pouvez cliquer sur traitement avancé")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
+
+        # Mark that we need to open advanced window and show step 5
+        self._tuto_advanced_opened = True
+        # Open the advanced processing window
+        self._on_advanced_clicked()
+
+    def _show_tuto_step_5(self) -> None:
+        """Shows step 5 of the tutorial: explain dilation/erosion with real-time preview"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Tutoriel - Étape 5")
+        msg.setText(
+            "vous pouvez effectuer une dilatation ou érosion avec des parametres dans cette fenetre "
+            "et voir le résulat en temps réel dans la fenetre principal"
+        )
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
+
+        # Step 6 will be triggered by the advanced processing done signal
+
+    def _show_tuto_step_6(self) -> None:
+        """Shows step 6 of the tutorial: explain image selection change after processing"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Tutoriel - Étape 6")
+        msg.setText(
+            "après un traitement, la selection de l'image affiché change pour le fichier "
+            "correspondant au résultat du traitement"
+        )
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
+
         # End of tutorial
         self.tutorial_active = False
         self.tutorial_step = 0
+        self._tuto_advanced_opened = False
 
     def _on_advanced_clicked(self) -> None:
         """Opens the advanced processing window"""
@@ -710,7 +755,7 @@ class ImageViewGraphic(QMainWindow):
         if self.advanced_window is None or not self.advanced_window.isVisible():
             self.advanced_window = create_advanced_window(
                 image_model=self.image_model,
-                parent=None  # No parent - independent window
+                parent=self  # Set parent to main window for proper lifecycle management
             )
             # Connect the processing done signal
             self.advanced_window.processing_done.connect(self._on_advanced_processing_done)
@@ -718,6 +763,11 @@ class ImageViewGraphic(QMainWindow):
         self.advanced_window.show()
         self.advanced_window.raise_()
         self.advanced_window.activateWindow()
+
+        # Trigger tutorial step 5 if tutorial is active and advanced window was opened from tutorial
+        if self.tutorial_active and self._tuto_advanced_opened:
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(100, self._show_tuto_step_5)
 
     def _on_advanced_processing_done(self, filename: str) -> None:
         """
@@ -735,6 +785,11 @@ class ImageViewGraphic(QMainWindow):
         
         # Update timestamp
         self._update_timestamp()
+
+        # Trigger tutorial step 6 if tutorial is active
+        if self.tutorial_active and self._tuto_advanced_opened:
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, self._show_tuto_step_6)
 
     def _show_close_confirmation(self) -> None:
         """Shows a confirmation dialog before closing the application"""
