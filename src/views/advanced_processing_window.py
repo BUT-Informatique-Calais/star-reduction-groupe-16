@@ -371,11 +371,18 @@ class AdvancedProcessingWindow(QWidget):
             # Get star mask for selective erosion
             gray_image = self.image_model.get_gray_image()
             detector = self._get_star_detector()
-            _, star_mask = detector.detect(gray_image)
+            star_mask, _ = detector.detect(gray_image)
+
+            # First apply global erosion
+            global_erosion = Erosion(
+                kernel_size=params["kernel_size"],
+                iterations=params["iterations"]
+            )
+            eroded_image = global_erosion.apply(image)
 
             # Apply selective erosion
             erosion = SelectiveErosion(blur_sigma=params["blur_sigma"])
-            result, _ = erosion.apply(image, image, star_mask)
+            result, _ = erosion.apply(image, eroded_image, star_mask)
 
             # Save result
             if is_color:
@@ -431,11 +438,18 @@ class AdvancedProcessingWindow(QWidget):
             # Get star mask for selective dilatation
             gray_image = self.image_model.get_gray_image()
             detector = self._get_star_detector()
-            _, star_mask = detector.detect(gray_image)
+            star_mask, _ = detector.detect(gray_image)
+
+            # First apply global dilatation
+            global_dilatation = Dilatation(
+                kernel_size=params["kernel_size"],
+                iterations=params["iterations"]
+            )
+            dilated_image = global_dilatation.apply(image)
 
             # Apply selective dilatation
             dilatation = SelectiveDilatation(blur_sigma=params["blur_sigma"])
-            result, _ = dilatation.apply(image, image, star_mask)
+            result, _ = dilatation.apply(image, dilated_image, star_mask)
 
             # Save result
             if is_color:

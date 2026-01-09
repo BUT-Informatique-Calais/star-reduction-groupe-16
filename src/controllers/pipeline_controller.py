@@ -126,11 +126,11 @@ class PipelineController:
             image_model.save_grayscale(dilated_image, "dilated")
 
         # Step 6: Selective dilatation (Controller/Processing)
-        # Apply selective dilatation to the selective eroded result
+        # Apply selective dilatation to the dilated image
         self.view.display_step(6, "Selective dilatation...")
         selective_dilatation = SelectiveDilatation(blur_sigma=self.config.MASK_BLUR_SIGMA)
         selective_dilatation_result, _ = selective_dilatation.apply(
-            image_model.image, selective_result, star_mask
+            image_model.image, dilated_image, star_mask
         )
         if image_model.is_color:
             image_model.save_color(selective_dilatation_result, "selective_dilated")
@@ -234,10 +234,10 @@ class PipelineController:
             self.on_progress(5, "Selective dilatation...")
 
         # Step 6: Selective dilatation (Controller/Processing)
-        # Apply selective dilatation to the selective eroded result
+        # Apply selective dilatation to the dilated image
         selective_dilatation = SelectiveDilatation(blur_sigma=self.config.MASK_BLUR_SIGMA)
         selective_dilatation_result, _ = selective_dilatation.apply(
-            image_model.image, selective_result, star_mask
+            image_model.image, dilated_image, star_mask
         )
         if image_model.is_color:
             image_model.save_color(selective_dilatation_result, "selective_dilated")

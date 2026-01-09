@@ -304,7 +304,7 @@ class ImageViewGraphic(QMainWindow):
 
         results_button_layout.addStretch()
 
-        self.open_results_button = QPushButton("📁 Open Results Folder")
+        self.open_results_button = QPushButton("Open Results Folder")
         self.open_results_button.setObjectName("openResultsButton")
         self.open_results_button.clicked.connect(self._on_open_results_folder)
         results_button_layout.addWidget(self.open_results_button)
@@ -835,16 +835,43 @@ class ImageViewGraphic(QMainWindow):
             if not fits_path:
                 return
 
-            # Update UI
-            self.file_label.setText(Path(fits_path).name)
+            fits_file_path = Path(fits_path)
+
+            # Check if FITS file still exists
+            if not fits_file_path.exists():
+                print(f"FITS file not found: {fits_file_path}")
+                # Still restore UI state but show warning
+                self.file_label.setText(f"{fits_file_path.name} (file not found)")
+                self.current_displayed_image = displayed_image
+                self.num_stars = num_stars
+                self.stars_count.setText(str(num_stars))
+                self._state_restored = True
+
+                if timestamp:
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(timestamp)
+                        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+                        self.timestamp_label.setText(f"Restored: {formatted_time} (FITS file missing)")
+                    except (ValueError, TypeError):
+                        self.timestamp_label.setText(f"Restored: {timestamp} (FITS file missing)")
+                else:
+                    self.timestamp_label.setText("Restored from save (FITS file missing)")
+
+                # Update result labels and display image anyway
+                self._update_result_labels_selection()
+                self._display_image(displayed_image)
+                return
+
+            # FITS file exists, load it
+            self.load_fits(str(fits_file_path))
+
+            # Override the displayed image to match saved state
             self.current_displayed_image = displayed_image
-            self.num_stars = num_stars
-            self.stars_count.setText(str(num_stars))
+            self._update_result_labels_selection()
+            self._display_image(displayed_image)
 
-            # Set flag to indicate state was restored (so PNG clicks work)
-            self._state_restored = True
-
-            # Update timestamp label
+            # Update timestamp
             if timestamp:
                 try:
                     from datetime import datetime
@@ -855,12 +882,6 @@ class ImageViewGraphic(QMainWindow):
                     self.timestamp_label.setText(f"Restored: {timestamp}")
             else:
                 self.timestamp_label.setText("Restored from save")
-
-            # Update result labels
-            self._update_result_labels_selection()
-
-            # Display the saved image
-            self._display_image(displayed_image)
 
             print(f"State restored: {fits_path}")
 
