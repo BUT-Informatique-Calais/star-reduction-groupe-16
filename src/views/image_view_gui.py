@@ -25,12 +25,13 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QFileDialog, QFrame, QScrollArea,
     QSizePolicy, QProgressBar, QMessageBox
 )
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QObject
-from PyQt6.QtGui import QPixmap, QImage, QFont, QIcon, QFontDatabase
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QObject, QUrl
+from PyQt6.QtGui import QPixmap, QImage, QFont, QIcon, QFontDatabase, QDesktopServices
 
 # Import existing model classes and controller
 from ..models import ImageModel, StateManager, Config
 from ..controllers import PipelineController
+from .advanced_processing_window import AdvancedProcessingWindow, create_advanced_window
 
 
 class ImageViewGraphic(QMainWindow):
@@ -83,6 +84,9 @@ class ImageViewGraphic(QMainWindow):
         self.tutorial_active: bool = False
         self.tutorial_step: int = 0
 
+        # Advanced processing window reference
+        self.advanced_window: Optional[AdvancedProcessingWindow] = None
+
         # Setup UI first
         self._setup_ui()
         self._setup_styles()
@@ -127,6 +131,11 @@ class ImageViewGraphic(QMainWindow):
         self.tuto_button.clicked.connect(self._on_tuto_clicked)
         top_layout.addWidget(self.tuto_button, alignment=Qt.AlignmentFlag.AlignRight)
 
+        self.advanced_button = QPushButton("⚙ Traitement avancé")
+        self.advanced_button.setObjectName("advancedButton")
+        self.advanced_button.clicked.connect(self._on_advanced_clicked)
+        top_layout.addWidget(self.advanced_button, alignment=Qt.AlignmentFlag.AlignRight)
+
         self.open_button = QPushButton("Open FITS")
         self.open_button.setObjectName("openButton")
         self.open_button.clicked.connect(self._on_open_fits)
@@ -142,7 +151,7 @@ class ImageViewGraphic(QMainWindow):
         # === Progress Bar ===
         self.progress_bar = QProgressBar()
         self.progress_bar.setObjectName("progressBar")
-        self.progress_bar.setRange(0, 5)
+        self.progress_bar.setRange(0, 7)
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setFixedHeight(20)
@@ -225,7 +234,7 @@ class ImageViewGraphic(QMainWindow):
         results_title.setObjectName("infoTitle")
         results_layout.addWidget(results_title)
 
-        # Row 1: first 3 result files
+        # Row 1: first 4 result files
         row1_widget = QWidget()
         row1_layout = QHBoxLayout(row1_widget)
         row1_layout.setContentsMargins(0, 0, 0, 0)
@@ -236,6 +245,7 @@ class ImageViewGraphic(QMainWindow):
             "original.png",
             "starmask.png",
             "eroded.png",
+            "selective_eroded.png",
         ]
 
         for filename in result_files:
@@ -252,15 +262,16 @@ class ImageViewGraphic(QMainWindow):
         row_separator.setFrameShadow(QFrame.Shadow.Sunken)
         results_layout.addWidget(row_separator)
 
-        # Row 2: last 3 result files
+        # Row 2: last 4 result files
         row2_widget = QWidget()
         row2_layout = QHBoxLayout(row2_widget)
         row2_layout.setContentsMargins(0, 0, 0, 0)
         row2_layout.setSpacing(10)
 
         result_files_row2 = [
-            "selective_eroded.png",
             "smooth_mask.png",
+            "dilated.png",
+            "selective_dilated.png",
             "difference.png",
         ]
 
@@ -285,6 +296,22 @@ class ImageViewGraphic(QMainWindow):
         timestamp_layout.addWidget(self.timestamp_label)
 
         content_layout.addWidget(timestamp_widget)
+
+        # === Open Results Folder Button ===
+        results_button_widget = QWidget()
+        results_button_layout = QHBoxLayout(results_button_widget)
+        results_button_layout.setContentsMargins(0, 10, 0, 0)
+
+        results_button_layout.addStretch()
+
+        self.open_results_button = QPushButton("📁 Open Results Folder")
+        self.open_results_button.setObjectName("openResultsButton")
+        self.open_results_button.clicked.connect(self._on_open_results_folder)
+        results_button_layout.addWidget(self.open_results_button)
+
+        results_button_layout.addStretch()
+
+        content_layout.addWidget(results_button_widget)
 
         main_layout.addWidget(content_widget)
 
@@ -347,11 +374,29 @@ class ImageViewGraphic(QMainWindow):
             QPushButton#tutoButton:hover {
                 background-color: #4a7a9a;
             }
+            QPushButton#advancedButton {
+                background-color: #5a4a7a;
+            }
+            QPushButton#advancedButton:hover {
+                background-color: #7a6a9a;
+            }
             QPushButton#closeButton {
                 background-color: #5a3a3a;
             }
             QPushButton#closeButton:hover {
                 background-color: #7a4a4a;
+            }
+            QPushButton#openResultsButton {
+                background-color: #4a7a4a;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+                font-size: 12px;
+                min-width: 120px;
+            }
+            QPushButton#openResultsButton:hover {
+                background-color: #6a9a6a;
             }
             QProgressBar {
                 background-color: #1a1a2e;
@@ -515,7 +560,7 @@ class ImageViewGraphic(QMainWindow):
 
     def _on_processing_finished(self) -> None:
         """Handles processing finished signal"""
-        self.progress_bar.setValue(5)
+        self.progress_bar.setValue(7)
         self.progress_bar.setFormat("Done!")
         self.setCursor(Qt.CursorShape.ArrowCursor)
         self.open_button.setEnabled(True)
@@ -655,6 +700,42 @@ class ImageViewGraphic(QMainWindow):
         self.tutorial_active = False
         self.tutorial_step = 0
 
+    def _on_advanced_clicked(self) -> None:
+        """Opens the advanced processing window"""
+        # Security check: if no FITS file is loaded and no state was restored, show tutorial
+        if self.image_model is None and not self._state_restored:
+            self._on_tuto_clicked()
+            return
+
+        if self.advanced_window is None or not self.advanced_window.isVisible():
+            self.advanced_window = create_advanced_window(
+                image_model=self.image_model,
+                parent=None  # No parent - independent window
+            )
+            # Connect the processing done signal
+            self.advanced_window.processing_done.connect(self._on_advanced_processing_done)
+        
+        self.advanced_window.show()
+        self.advanced_window.raise_()
+        self.advanced_window.activateWindow()
+
+    def _on_advanced_processing_done(self, filename: str) -> None:
+        """
+        Handles the completion of advanced processing.
+        
+        Args:
+            filename: The filename of the result image to display
+        """
+        # Update the image model reference in the advanced window
+        if self.advanced_window is not None:
+            self.advanced_window.set_image_model(self.image_model)
+        
+        # Display the result image
+        self._display_image(filename)
+        
+        # Update timestamp
+        self._update_timestamp()
+
     def _show_close_confirmation(self) -> None:
         """Shows a confirmation dialog before closing the application"""
         msg = QMessageBox(self)
@@ -695,6 +776,14 @@ class ImageViewGraphic(QMainWindow):
 
         # Show confirmation dialog
         self._show_close_confirmation()
+
+    def _on_open_results_folder(self) -> None:
+        """Handles the Open Results Folder button click"""
+        try:
+            results_url = QUrl.fromLocalFile(str(self.results_dir.absolute()))
+            QDesktopServices.openUrl(results_url)
+        except Exception as e:
+            print(f"Error opening results folder: {e}")
 
     def _save_and_close(self) -> None:
         """Saves the current state and closes without deleting images"""
@@ -815,6 +904,13 @@ class ImageViewGraphic(QMainWindow):
 
         # Show confirmation dialog
         self._show_close_confirmation()
+
+    def _cleanup_advanced_window(self) -> None:
+        """
+        Cleans up the advanced processing window.
+        Note: Since windows are now independent, this only clears the reference.
+        """
+        self.advanced_window = None
 
     def __repr__(self) -> str:
         return f"ImageViewGraphic(results_dir='{self.results_dir}')"

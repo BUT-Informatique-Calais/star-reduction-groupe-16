@@ -400,3 +400,117 @@ class SelectiveErosion:
     def __repr__(self) -> str:
         return f"SelectiveErosion(blur_sigma={self.blur_sigma})"
 
+
+class Dilatation:
+    """
+    Global morphological dilatation for astronomical image processing.
+    
+    Applies dilatation to expand bright structures and fill small gaps in images.
+    """
+
+    def __init__(
+        self,
+        kernel_size: int = 3,
+        iterations: int = 1
+    ):
+        """
+        Initializes the dilatation processor.
+        
+        Args:
+            kernel_size: Size of the morphological kernel (odd number)
+            iterations: Number of times to apply dilatation
+        """
+        self.kernel_size = kernel_size
+        self.iterations = iterations
+
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        """
+        Applies dilatation to the image.
+        
+        Args:
+            image: Input image (uint8, grayscale or BGR)
+            
+        Returns:
+            Dilated image
+        """
+        kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
+        dilated = cv.dilate(image, kernel, iterations=self.iterations)
+        return dilated
+
+
+class SelectiveDilatation:
+    """
+    Applies selective dilatation with mask interpolation.
+
+    Combines dilated and original images according to a
+    smoothed mask to protect structures while dilating stars.
+
+    Formula: I_final = I_original + 0.5 * (I_dilated - I_original) * M
+
+    Attributes:
+        blur_sigma: Gaussian blur standard deviation for mask smoothing
+    """
+
+    def __init__(self, blur_sigma: float = 5.0):
+        """
+        Initializes selective dilatation.
+
+        Args:
+            blur_sigma: Gaussian blur standard deviation (pixels)
+        """
+        self.blur_sigma = blur_sigma
+
+    def apply(
+        self,
+        original: np.ndarray,
+        dilated: np.ndarray,
+        mask: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Applies selective dilatation on the image.
+
+        Args:
+            original: Original image
+            dilated: Image after global dilatation
+            mask: Binary star mask (uint8, 0 or 255)
+
+        Returns:
+            Tuple[result, smooth_mask]: Result image and smoothed mask
+        """
+        # Convert mask to normalized float64 [0, 1]
+        mask_float = mask.astype(np.float64) / 255.0
+
+        # Apply Gaussian blur to smooth transitions
+        mask_smooth = cv.GaussianBlur(
+            mask_float,
+            (3, 3),
+            sigmaX=0,
+            sigmaY=0
+        )
+
+        # Clamp to valid range
+        mask_smooth = np.clip(mask_smooth, 0, 1)
+
+        # Apply formula: I_final = I_original + 0.5 * (I_dilated - I_original) * M
+        weight = 0.5 * mask_smooth
+
+        # Apply interpolation formula
+        if original.ndim == 3:
+            # Color image - channel by channel
+            result = np.zeros_like(original, dtype=np.float64)
+            for i in range(original.shape[2]):
+                result[:, :, i] = original[:, :, i].astype(np.float64) + \
+                    weight * (dilated[:, :, i].astype(np.float64) - original[:, :, i].astype(np.float64))
+        else:
+            # Grayscale image
+            result = original.astype(np.float64) + \
+                weight * (dilated.astype(np.float64) - original.astype(np.float64))
+
+        # Convert to uint8
+        result_uint8 = np.clip(result, 0, 255).astype(np.uint8)
+
+        return result_uint8, mask_smooth
+
+    def __repr__(self) -> str:
+        return f"SelectiveDilatation(blur_sigma={self.blur_sigma})"
+
