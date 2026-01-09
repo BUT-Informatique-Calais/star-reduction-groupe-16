@@ -1,6 +1,6 @@
 # SAE Astro - Selective Erosion for Astronomical Images
 
-A Python project for processing astronomical FITS images using selective erosion and erosion to remove bright stars while preserving nebular structures.
+A Python project for processing astronomical FITS images using selective erosion and dilatation to remove bright stars while preserving nebular structures.
 
 ## Description
 
@@ -8,18 +8,21 @@ This project implements an image processing pipeline that:
 - Detects stars in astronomical images using the DAOStarFinder algorithm
 - Applies morphological erosion to reduce stellar brightness
 - Uses selective erosion to protect nebular regions around detected stars
+- Applies morphological dilatation to expand bright structures
+- Uses selective dilatation to protect nebular regions around detected stars
 - Generates various output images showing each processing step
 
 ## Key Features
 
 - **Star Detection**: Uses photutils' DAOStarFinder with sigma-clipped background statistics
-- **Morphological Operations**: OpenCV-based erosion for reducing stellar halos
-- **Selective Processing**: Gaussian-blurred masks to interpolate between original and eroded images
+- **Morphological Operations**: OpenCV-based erosion and dilatation for processing astronomical images
+- **Selective Processing**: Gaussian-blurred masks to interpolate between original and processed images
 - **Multi-format Support**: Handles both grayscale and color FITS images
 - **Configurable Parameters**: Adjust FWHM, detection threshold, and blur sigma via interactive CLI
 - **Interactive Terminal Mode**: Choose FITS file and customize all processing parameters
-- **Interactive Tutorial**: Built-in 3-step guided tutorial for new users (GUI)
+- **Interactive Tutorial**: Built-in 6-step guided tutorial for new users (GUI)
 - **Clickable Results**: Click on result filenames to view the corresponding image (GUI)
+- **Advanced Processing**: Real-time parameter tuning with preview in separate window
 
 ## Algorithm Pipeline
 
@@ -28,7 +31,9 @@ This project implements an image processing pipeline that:
 2. DETECT      → DAOStarFinder creates binary star mask
 3. ERODE       → Global morphological erosion
 4. SELECTIVE   → Mask-guided interpolation (protect nebulae)
-5. SAVE        → Export all intermediate and final results
+5. DILATE      → Global morphological dilatation
+6. SELECTIVE   → Mask-guided dilatation (protect nebulae)
+7. SAVE        → Export all intermediate and final results
 ```
 
 ## Installation
@@ -129,44 +134,48 @@ python -m src.main --gui
 |---------|-------------|
 | **Open FITS** | Opens a file dialog to select a FITS file |
 | **Close** | Exits with save/cleanup confirmation dialog |
-| **Tuto** | Launches interactive 3-step tutorial |
+| **Tuto** | Launches interactive 6-step tutorial |
+| **Advanced** | Opens advanced processing window with real-time parameter tuning |
 | **Image Display** | Scrollable PNG image display with aspect ratio preservation |
-| **Progress Bar** | 5-step processing progress indicator |
+| **Progress Bar** | 7-step processing progress indicator |
 | **Stars Detected** | Real-time star count from DAOStarFinder |
 | **Clickable Results** | Click filenames to view corresponding images |
 | **Result Files** | Lists all output files with click-to-view |
 | **Timestamp** | Shows when results were last updated |
 | **State Persistence** | Saves/restores session state automatically |
 | **Save/Close Dialog** | Prompts to save state before exiting |
+| **Open Results Folder** | Opens the results directory in file explorer |
 
 #### GUI Layout
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│ No file selected           [Tuto] [Open FITS]            [Close]    │
-├─────────────────────────────────────────────────────────────────────┤
-│ [==== 0% ====............]                                          │
-├─────────────────────────────────────────────────────────────────────┤
-│                              │                                      │
-│                              │     Stars detected:                  │
-│                              │          XX                          │
-│    [ Scrollable Image ]      │                                      │
-│                              │     Result files:                    │
-│                              │     • original.png                   │
-│                              │     • starmask.png                   │
-│                              │     • eroded.png                     │
-│                              │     ────────────────────────────     │
-│                              │     • selective_eroded.png           │
-│                              │     • smooth_mask.png                │
-│                              │     • difference.png                 │
-│                              │                                      │
-│                              │     Last updated: XXXX-XX-XX XX:XX   │
-└──────────────────────────────┴──────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ No file selected           [Tuto] [⚙] [Open FITS]                    [Close]    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ [==== 0% ====............]                                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                      │                                          │
+│                                      │     Stars detected:                      │
+│                                      │          XX                              │
+│    [ Scrollable Image ]              │                                          │
+│                                      │     Result files:                        │
+│                                      │     • original.png                       │
+│                                      │     • starmask.png                       │
+│                                      │     • eroded.png                         │
+│                                      │     ────────────────────────────         │
+│                                      │     • selective_eroded.png               │
+│                                      │     • smooth_mask.png                    │
+│                                      │     • dilated.png                        │
+│                                      │     • selective_dilated.png              │
+│                                      │     • difference.png                     │
+│                                      │                                          │
+│                                      │     Last updated: XXXX-XX-XX XX:XX       │
+└──────────────────────────────┴──────────────────────────────────────────────────┘
 ```
 
 #### Interactive Tutorial
 
-The GUI includes a built-in 3-step tutorial for new users:
+The GUI includes a built-in 6-step tutorial for new users:
 
 **Step 1:** "Cliquez sur le bouton 'Open FITS' pour charger un fichier FITS"  
 Guides users to open a FITS file for processing.
@@ -176,6 +185,15 @@ Explains the displayed image, star count, and result files list.
 
 **Step 3:** "Vous pouvez cliquer sur un nom d'image.png pour voir le résultat du traitement"  
 Demonstrates the clickable result filenames feature.
+
+**Step 4:** "Vous pouvez cliquer sur traitement avancé"  
+Introduces the advanced processing window.
+
+**Step 5:** "vous pouvez effectuer une dilatation ou érosion avec des parametres dans cette fenetre et voir le résulat en temps réel dans la fenetre principal"  
+Explains how to use the advanced processing window with real-time preview.
+
+**Step 6:** "après un traitement, la selection de l'image affiché change pour le fichier correspondant au résultat du traitement"  
+Shows that the displayed image updates automatically after processing.
 
 To start the tutorial, click the **"Tuto"** button in the top-right corner.
 
@@ -208,19 +226,41 @@ On next launch:
 - Contains: `fits_file`, `displayed_image`, `num_stars`, `timestamp`
 - Cleared when clicking "No" in close dialog
 
+#### Advanced Processing Window
+
+The advanced processing window allows real-time parameter tuning:
+
+**Features:**
+- **Erosion Parameters**: Kernel size (1-21 px), Iterations (1-20)
+- **Dilatation Parameters**: Kernel size (1-21 px), Iterations (1-20)
+- **Selective Mode**: Checkbox to enable mask-guided processing
+- **Blur Sigma**: Gaussian blur standard deviation (0-50)
+- **Apply Erosion**: Applies erosion with current parameters
+- **Apply Dilatation**: Applies dilatation with current parameters
+- **Real-time Preview**: Results displayed in main window immediately
+- **Reset on Close**: Parameters reset to defaults when window closes
+
+**Parameters:**
+- Uses the last processing result as input (e.g., dilatation uses eroded image)
+- Selective mode uses star mask for protected regions
+- Non-selective mode applies global morphological operation
+
 #### GUI Technical Details
 
 - **Framework**: PyQt6
-- **Class**: `ImageViewGraphic` in `src/views/image_view_gui.py`
+- **Main Window Class**: `ImageViewGraphic` in `src/views/image_view_gui.py`
+- **Advanced Window Class**: `AdvancedProcessingWindow` in `src/views/advanced_processing_window.py`
 - **Features**:
   - Custom dark theme styling (Fusion style base)
   - Scrollable image area with aspect ratio preservation
   - File dialog with FITS file filter
-  - Real-time progress bar (5 steps)
-  - Interactive tutorial with QMessageBox popups
+  - Real-time progress bar (7 steps)
+  - Interactive tutorial with QMessageBox popups (6 steps)
+  - Advanced processing window with parameter controls
   - Responsive layout with state save/restore on exit
   - Custom signals for MVC communication (pyqtSignal)
   - State persistence with `StateManager` class
+  - Results folder explorer integration
 
 #### State Manager (`src/models/state_manager.py`)
 
@@ -242,9 +282,11 @@ All results are saved to the `results/` directory:
 | `original.png` | Original input image |
 | `starmask.png` | Binary mask of detected stars |
 | `eroded.png` | Image after global morphological erosion |
-| `selective_eroded.png` | Final result with selective erosion |
+| `selective_eroded.png` | Result with selective erosion (protects nebulae) |
 | `smooth_mask.png` | Gaussian-blurred star mask |
-| `difference.png` | Visual difference (eroded - selective) |
+| `dilated.png` | Image after global morphological dilatation |
+| `selective_dilated.png` | Result with selective dilatation (protects nebulae) |
+| `difference.png` | Visual difference (eroded - selective eroded) |
 
 **Note:** PNG files are automatically deleted when closing the GUI application.
 
@@ -257,6 +299,11 @@ SAE_astro/
 │   ├── HorseHead.fits      # Grayscale test image
 │   ├── test_M31_linear.fits # Color test image
 │   └── test_M31_raw.fits   # Color test image
+├── Phase_1/                # Phase 1 documentation
+│   └── Preuve_de_concept.txt
+├── Phase_2/                # Phase 2 documentation
+│   ├── Preuve_EtapeA.txt   # Star detection documentation
+│   └── Preuve_EtapeB.txt   # Selective erosion documentation
 ├── results/                # Generated output images (auto-cleaned on exit)
 └── src/                    # Source code (MVC Architecture)
     ├── main.py             # Main entry point & CLI
@@ -264,11 +311,13 @@ SAE_astro/
     ├── models/             # Data models & Processing algorithms
     │   ├── __init__.py
     │   ├── config.py       # Configuration data
-    │   └── image_model.py  # Image data model & processing algorithms
+    │   ├── image_model.py  # Image data model & processing algorithms
+    │   └── state_manager.py # Session state persistence
     ├── views/              # View layer (Display/Output)
     │   ├── __init__.py
     │   ├── image_view.py   # Terminal output & interactive configuration
-    │   └── image_view_gui.py # PyQt6 GUI application
+    │   ├── image_view_gui.py # PyQt6 GUI application
+    │   └── advanced_processing_window.py # Advanced parameter controls
     └── controllers/        # Controller layer (Flow Orchestration)
         ├── __init__.py
         └── pipeline_controller.py # Pipeline orchestration
@@ -305,6 +354,8 @@ Image data model and processing algorithms:
 - `StarDetector`: Star detection using DAOStarFinder from photutils
 - `Erosion`: Global morphological erosion for astronomical image processing
 - `SelectiveErosion`: Applies selective erosion with mask interpolation
+- `Dilatation`: Global morphological dilatation for astronomical image processing
+- `SelectiveDilatation`: Applies selective dilatation with mask interpolation
 
 #### `state_manager.py`
 State management for GUI session persistence:
@@ -341,7 +392,8 @@ Handles all output (terminal and GUI).
   - `_setup_ui()`: Create all UI components including progress bar and tutorial
   - `_setup_styles()`: Apply dark theme styling
   - `_on_open_fits()`: Open file dialog for FITS selection
-  - `_on_tuto_clicked()`: Launch interactive 3-step tutorial
+  - `_on_tuto_clicked()`: Launch interactive 6-step tutorial
+  - `_on_advanced_clicked()`: Open advanced processing window
   - `_display_image()`: Display PNG image with aspect ratio preservation
   - `_on_result_clicked()`: Handle click on result filenames
   - `_cleanup_results()`: Delete PNG files on application exit
@@ -350,19 +402,40 @@ Handles all output (terminal and GUI).
 - `main()`: GUI entry point
 
 **New GUI Features:**
-- **Interactive Tutorial**: 3-step guided walkthrough using QMessageBox popups
-- **Progress Bar**: Visual 5-step progress indicator during processing
+- **Interactive Tutorial**: 6-step guided walkthrough using QMessageBox popups
+- **Progress Bar**: Visual 7-step progress indicator during processing
+- **Advanced Processing**: Separate window for real-time parameter tuning
 - **Clickable Images**: All result filenames are clickable to display corresponding images
 - **Visual Selection**: Currently displayed image is highlighted in green
 - **State Persistence**: Saves/restores session automatically on close/launch
 - **Save Confirmation Dialog**: Prompts to save state before exiting
 - **Responsive Design**: Window resize handling with image aspect ratio preservation
+- **Results Folder Access**: Button to open results directory in file explorer
+
+#### `advanced_processing_window.py`
+- `AdvancedProcessingWindow`: PyQt6 widget for advanced parameter control
+  - `__init__()`: Initialize advanced window with parameter controls
+  - `_setup_ui()`: Create parameter input fields and buttons
+  - `_setup_styles()`: Apply dark theme styling
+  - `_on_apply_erosion()`: Apply erosion with current parameters
+  - `_on_apply_dilatation()`: Apply dilatation with current parameters
+  - `processing_done`: Signal emitted when processing completes (emits result filename)
+- `create_advanced_window()`: Factory function to create window instance
+
+**Advanced Window Features:**
+- **Erosion Controls**: Kernel size (odd numbers 1-21), Iterations (1-20)
+- **Dilatation Controls**: Kernel size (odd numbers 1-21), Iterations (1-20)
+- **Selective Mode Checkbox**: Toggle between global and selective processing
+- **Blur Sigma Control**: Gaussian blur standard deviation (0-50)
+- **Apply Buttons**: Real-time processing with immediate main window update
+- **Reset on Close**: Parameters reset to defaults when window closes
+- **Error Handling**: Warning dialog when no image is loaded
 
 ### Controllers (`src/controllers/`) - Flow Orchestration
 Business logic and workflow orchestration.
 
 #### `pipeline_controller.py`
-- Orchestrates the 5-step pipeline
+- Orchestrates the 7-step pipeline
 - Coordinates models and views
 - Handles CLI arguments
 - Supports callback-based progress tracking
@@ -419,9 +492,20 @@ Click on any result filename to display that image:
 - `eroded.png` - After global erosion
 - `selective_eroded.png` - Final selective erosion result
 - `smooth_mask.png` - Gaussian-blurred mask
+- `dilated.png` - After global dilatation
+- `selective_dilated.png` - Final selective dilatation result
 - `difference.png` - Visual difference map
 
-### 6. Need Help?
+### 6. Advanced Processing
+
+Click **"⚙ Traitement avancé"** to open the advanced processing window:
+1. Adjust erosion/dilatation parameters (kernel size, iterations)
+2. Toggle selective mode with star mask protection
+3. Set blur sigma for smooth transitions
+4. Click "Appliquer érosion" or "Appliquer dilatation"
+5. View results immediately in the main window
+
+### 7. Need Help?
 
 Click **"Tuto"** button for the interactive tutorial (GUI only)!
 
@@ -442,3 +526,19 @@ When running in "custom" mode, you can configure:
 - Values below minimum are rejected with error message
 - Invalid input (non-numeric) shows error and re-prompts
 - `cancel` aborts custom configuration and uses all defaults
+
+## Documentation
+
+### Phase 1: Proof of Concept
+- File: `Phase_1/Preuve_de_concept.txt`
+- Initial erosion implementation
+- Basic FITS file handling
+
+### Phase 2: Star Detection & Selective Erosion
+- Step A: `Phase_2/Preuve_EtapeA.txt` - Star detection using DAOStarFinder
+- Step B: `Phase_2/Preuve_EtapeB.txt` - Selective erosion implementation
+
+## License
+
+This project is part of the SAE (Synthèse d'Activités d'Évaluation) for IUT.
+
